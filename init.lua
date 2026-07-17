@@ -6,7 +6,7 @@ vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 vim.opt.softtabstop = 4
 vim.opt.clipboard = "unnamedplus"
-vim.opt.colorcolumn = "100"
+-- vim.opt.colorcolumn = "110"
 
 -- UI
 vim.opt.number = true
@@ -273,17 +273,23 @@ require("lazy").setup({
         -- ------------------------------------------------------------
         -- LSP & completion
         -- ------------------------------------------------------------
-        {
-            "neovim/nvim-lspconfig",
-            dependencies = {
-                { "mason-org/mason.nvim", opts = {} },
-                { "mason-org/mason-lspconfig.nvim", opts = {} },
-            },
-            config = function()
-                vim.lsp.enable("pyright")
-                vim.lsp.enable("clangd")
-            end,
-        },
+		{
+			"neovim/nvim-lspconfig",
+			dependencies = {
+				{ "mason-org/mason.nvim", opts = {} },
+				{ "mason-org/mason-lspconfig.nvim", opts = {} },
+			},
+			config = function()
+				vim.lsp.config("clangd", {
+					init_options = {
+						fallbackFlags = { "-std=c++23" },
+					},
+				})
+
+				vim.lsp.enable("pyright")
+				vim.lsp.enable("clangd")
+			end,
+		},
         {
             "saghen/blink.cmp",
             version = "1.*",
