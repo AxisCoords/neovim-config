@@ -5,7 +5,6 @@
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 vim.opt.softtabstop = 4
-vim.opt.clipboard = "unnamedplus"
 -- vim.opt.colorcolumn = "110"
 
 -- UI
@@ -29,6 +28,20 @@ vim.g.maplocalleader = "\\"
 -- Disable netrw (replaced by nvim-tree)
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
+
+-- Start treesitter highlighting; treesitter indent only where it's good
+vim.api.nvim_create_autocmd("FileType", {
+    callback = function(ev)
+        pcall(vim.treesitter.start, ev.buf)
+
+        -- Treesitter indent is experimental; skip languages where
+        -- vim's built-in indent is better (C-family)
+        local skip_ts_indent = { c = true, cpp = true, java = true }
+        if not skip_ts_indent[vim.bo[ev.buf].filetype] then
+            vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+    end,
+})
 
 -- Don't auto-insert comment leaders on new lines
 vim.api.nvim_create_autocmd("FileType", {
@@ -62,22 +75,22 @@ local map = vim.keymap.set
 map("n", "<leader>q", "<cmd>confirm qa<cr>", { desc = "Quit nvim" })
 
 -- Indent / dedent
-map("n", "<S-Tab>", "<<",       { desc = "Dedent line" })
-map("i", "<S-Tab>", "<C-d>",    { desc = "Dedent line" })
-map("v", "<S-Tab>", "<gv",      { desc = "Dedent selection" })
-map("n", "<Tab>",   ">>",       { desc = "Indent line" })
-map("v", "<Tab>",   ">gv",      { desc = "Indent selection" })
+map("n", "<S-Tab>", "<<",    { desc = "Dedent line" })
+map("i", "<S-Tab>", "<C-d>", { desc = "Dedent line" })
+map("v", "<S-Tab>", "<gv",   { desc = "Dedent selection" })
+map("n", "<Tab>",   ">>",    { desc = "Indent line" })
+map("v", "<Tab>",   ">gv",   { desc = "Indent selection" })
 
 -- Copy / paste (system clipboard)
-map("v", "<C-c>", '"+y',        { desc = "Copy selection" })
-map("n", "<C-c>", '"+yy',       { desc = "Copy line" })
+map("v", "<C-c>", '"+y',          { desc = "Copy selection" })
+map("n", "<C-c>", '"+yy',         { desc = "Copy line" })
 map({ "n", "v" }, "<C-v>", '"+p', { desc = "Paste" })
-map("i", "<C-v>", "<C-r>+",     { desc = "Paste" })
+map("i", "<C-v>", "<C-r>+",       { desc = "Paste" })
 
 -- Undo / redo
-map("n", "<C-z>", "u", { desc = "Undo" })
-map("i", "<C-z>", "<C-o>u", { desc = "Undo" })
-map("n", "<C-y>", "<C-r>", { desc = "Redo" })
+map("n", "<C-z>", "u",          { desc = "Undo" })
+map("i", "<C-z>", "<C-o>u",     { desc = "Undo" })
+map("n", "<C-y>", "<C-r>",      { desc = "Redo" })
 map("i", "<C-y>", "<C-o><C-r>", { desc = "Redo" })
 
 -- Toggle comment (VSCode style; <C-_> is how terminals send Ctrl+/)
@@ -130,12 +143,12 @@ map("n", "<C-q>", function()
     local cur = vim.api.nvim_get_current_buf()
     local others = vim.tbl_filter(function(b)
         return vim.bo[b].buflisted
-                and vim.bo[b].buftype == "" -- exclude terminals & friends  ← the fix
-                and b ~= cur
+            and vim.bo[b].buftype == "" -- exclude terminals & friends
+            and b ~= cur
     end, vim.api.nvim_list_bufs())
 
     if #others > 0 then
-        vim.api.nvim_win_set_buf(0, others[#others]) -- explicit: this window, that buffer
+        vim.api.nvim_win_set_buf(0, others[#others])
     else
         vim.cmd("enew")
     end
@@ -259,18 +272,10 @@ require("lazy").setup({
             build = ":TSUpdate",
             lazy = false,
             config = function()
-                local ts = require("nvim-treesitter")
-                ts.install({
+                require("nvim-treesitter").install({
                     "bash", "lua", "cpp", "c", "cmake", "html", "css",
                     "javascript", "typescript", "tsx", "csv",
                     "python", "go", "java", "json",
-                })
-
-                vim.api.nvim_create_autocmd("FileType", {
-                    callback = function(ev)
-                        pcall(vim.treesitter.start, ev.buf)
-                        vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-                    end,
                 })
             end,
         },
@@ -283,23 +288,23 @@ require("lazy").setup({
         -- ------------------------------------------------------------
         -- LSP & completion
         -- ------------------------------------------------------------
-		{
-			"neovim/nvim-lspconfig",
-			dependencies = {
-				{ "mason-org/mason.nvim", opts = {} },
-				{ "mason-org/mason-lspconfig.nvim", opts = {} },
-			},
-			config = function()
-				vim.lsp.config("clangd", {
-					init_options = {
-						fallbackFlags = { "-std=c++23" },
-					},
-				})
+        {
+            "neovim/nvim-lspconfig",
+            dependencies = {
+                { "mason-org/mason.nvim", opts = {} },
+                { "mason-org/mason-lspconfig.nvim", opts = {} },
+            },
+            config = function()
+                vim.lsp.config("clangd", {
+                    init_options = {
+                        fallbackFlags = { "-std=c++23" },
+                    },
+                })
 
-				vim.lsp.enable("pyright")
-				vim.lsp.enable("clangd")
-			end,
-		},
+                vim.lsp.enable("pyright")
+                vim.lsp.enable("clangd")
+            end,
+        },
         {
             "saghen/blink.cmp",
             version = "1.*",
