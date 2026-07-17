@@ -37,6 +37,13 @@ vim.api.nvim_create_autocmd("FileType", {
     end,
 })
 
+-- Lock terminal windows to their buffer (tab clicks can't hijack them)
+vim.api.nvim_create_autocmd("TermOpen", {
+    callback = function()
+        vim.wo.winfixbuf = true
+    end,
+})
+
 -- ========================================================================
 -- Diagnostics
 -- ========================================================================
@@ -95,8 +102,9 @@ map("n", "<leader>h", "<cmd>split<cr>",  { desc = "Horizontal split" })
 
 -- Close split if there are several; otherwise close the buffer
 map("n", "<C-q>", function()
-    if vim.bo.filetype == "NvimTree" then
-        return -- ignore in the file explorer
+    -- Only act in real code windows (not the tree, terminal, help, etc.)
+    if vim.bo.buftype ~= "" or vim.bo.filetype == "NvimTree" then
+        return
     end
 
     -- Count "real" code windows: not floating, not the tree, not terminals
@@ -104,28 +112,30 @@ map("n", "<C-q>", function()
     for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
         local cfg = vim.api.nvim_win_get_config(w)
         local buf = vim.api.nvim_win_get_buf(w)
-        if cfg.relative == "" -- not a floating window
-            and vim.bo[buf].buftype == "" -- not a terminal/help/etc.
+        if cfg.relative == ""
+            and vim.bo[buf].buftype == ""
             and vim.bo[buf].filetype ~= "NvimTree"
         then
             code_wins = code_wins + 1
         end
     end
 
-    -- Multiple splits: just close this one, focus moves to another
+    -- Multiple splits: just close this one
     if code_wins > 1 then
         vim.cmd("close")
         return
     end
 
-    -- Single view: close the buffer (tab) as before
+    -- Single view: switch this window to another listed buffer, then delete
     local cur = vim.api.nvim_get_current_buf()
     local others = vim.tbl_filter(function(b)
-        return vim.bo[b].buflisted and b ~= cur
+        return vim.bo[b].buflisted
+                and vim.bo[b].buftype == "" -- exclude terminals & friends  ← the fix
+                and b ~= cur
     end, vim.api.nvim_list_bufs())
 
     if #others > 0 then
-        vim.cmd("BufferLineCyclePrev")
+        vim.api.nvim_win_set_buf(0, others[#others]) -- explicit: this window, that buffer
     else
         vim.cmd("enew")
     end
